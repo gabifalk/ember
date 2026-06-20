@@ -5,6 +5,7 @@
 
 #include <ember/spinlock.h>
 #include <ember/cpu.h>
+#include <ember/vectors.h>
 
 /*
  * Big Kernel Lock -- serializes all kernel entry.
@@ -57,7 +58,7 @@ bkl_release(void)
 	extern volatile int lapic_enabled;
 	extern void lapic_send_ipi_all_excl_self(uint8_t vector);
 	if (cpu_count > 1 && lapic_enabled)
-		lapic_send_ipi_all_excl_self(0x40);	/* Schedule kick. */
+		lapic_send_ipi_all_excl_self(VEC_SCHED_KICK);
 }
 
 static inline int

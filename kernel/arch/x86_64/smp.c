@@ -12,6 +12,7 @@
 #include "ember/mmu.h"
 #include "ember/io.h"
 #include "ember/bkl.h"
+#include "ember/vectors.h"
 #include "ember/sched.h"
 #include "ember/spinlock.h"
 #include "ember/bug.h"
@@ -392,7 +393,7 @@ smp_init(void)
  * -- TLB shootdown IPI ----------------------------------------------
  * Flush TLB on all other CPUs.  Called after modifying PTEs that may
  * be cached on remote CPUs running the same process in user mode.
- * The IPI handler (isr_tlb_shootdown, vector 0x40) does EOI + mov cr3,cr3
+ * The IPI handler (isr_tlb_shootdown, vector 0x41) does EOI + mov cr3,cr3
  * and increments tlb_ack_count.  smp_flush_tlb waits for all online CPUs
  * to acknowledge before returning, ensuring no stale TLB entries remain.
  *
@@ -404,7 +405,6 @@ smp_init(void)
  *
  * Verified: models/cow_phys.pml.
  */
-#define TLB_SHOOTDOWN_VECTOR 0x41	/* Separate from sched_kick (0x40) */
 
 volatile int tlb_ack_count;
 
@@ -426,7 +426,7 @@ smp_flush_tlb(void)
 	tlb_ack_count = 0;
 	__asm__ __volatile__("":::"memory");	/* Compiler barrier. */
 
-	lapic_send_ipi_all_excl_self(TLB_SHOOTDOWN_VECTOR);
+	lapic_send_ipi_all_excl_self(VEC_TLB_SHOOTDOWN);
 
 	/*
 	 * Wait for all other CPUs to acknowledge the flush.

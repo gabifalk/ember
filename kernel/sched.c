@@ -10,6 +10,7 @@
 #include "ember/bug.h"
 #include "ember/bkl.h"
 #include "ember/lapic.h"
+#include "ember/vectors.h"
 
 #define IA32_FS_BASE 0xC0000100u
 
@@ -296,7 +297,7 @@ void schedule(void) {
                 prev->state = PROC_READY;
                 /* Kick idle CPUs to pick up the now-READY process. */
                 if (cpu_count > 1 && lapic_enabled)
-                    lapic_send_ipi_all_excl_self(0x40);
+                    lapic_send_ipi_all_excl_self(VEC_SCHED_KICK);
             }
             /* Release prev's kstack before context_switch. */
             kstack_cpu[(int)(prev - procs)] = -1;

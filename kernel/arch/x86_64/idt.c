@@ -4,6 +4,7 @@
 
 #include "ember/console.h"
 #include "ember/desc.h"
+#include "ember/vectors.h"
 
 struct idt_entry {
 	uint16_t off_low;
@@ -104,19 +105,19 @@ idt_init(void)
 		idt[i].zero = 0;
 	}
 
-	idt_set_gate(0, isr_de);
-	idt_set_gate(1, isr_db);
-	idt_set_gate(6, isr_ud);
-	idt_set_gate(3, isr_bp);
-	idt_set_gate(11, isr_np);
-	idt_set_gate(12, isr_ss);
-	idt_set_gate(13, isr_gp);
-	idt_set_gate_ist(8, isr_df);	/* IST1: dedicated stack for #DF. */
-	idt_set_gate(14, isr_pf);
-	idt_set_gate(32, isr_timer);
-	idt_set_gate(0x40, isr_sched_kick);
+	idt_set_gate(VEC_DE, isr_de);
+	idt_set_gate(VEC_DB, isr_db);
+	idt_set_gate(VEC_UD, isr_ud);
+	idt_set_gate(VEC_BP, isr_bp);
+	idt_set_gate(VEC_NP, isr_np);
+	idt_set_gate(VEC_SS, isr_ss);
+	idt_set_gate(VEC_GP, isr_gp);
+	idt_set_gate_ist(VEC_DF, isr_df);	/* IST1: dedicated stack for #DF. */
+	idt_set_gate(VEC_PF, isr_pf);
+	idt_set_gate(VEC_TIMER, isr_timer);
+	idt_set_gate(VEC_SCHED_KICK, isr_sched_kick);
 	extern void isr_tlb_shootdown(void);
-	idt_set_gate(0x41, isr_tlb_shootdown);
+	idt_set_gate(VEC_TLB_SHOOTDOWN, isr_tlb_shootdown);
 
 	uint8_t idtr[10];
 	uint16_t limit = (uint16_t) (sizeof(idt) - 1);

@@ -12,6 +12,7 @@
 #include "ember/mmu.h"
 #include "ember/console.h"
 #include "ember/heap.h"
+#include "ember/vectors.h"
 #include "boot_info.h"
 #include "ember/acpi.h"
 #include "ember/lapic.h"
@@ -294,7 +295,7 @@ kexec_execute(void)
 
 		kexec_halting = 1;
 		__asm__ __volatile__("":::"memory");	/* Compiler barrier. */
-		lapic_send_ipi_all_excl_self(0x40);	/* Kick to wake from HLT. */
+		lapic_send_ipi_all_excl_self(VEC_SCHED_KICK);	/* Kick to wake from HLT. */
 
 		/* Wait for all APs. */
 		volatile int timeout = 0;
