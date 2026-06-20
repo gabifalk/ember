@@ -9,6 +9,7 @@
 #include "ember/paging.h"
 #include "ember/console.h"
 #include "ember/io.h"
+#include "ember/vectors.h"
 
 /* LAPIC register offsets (byte offsets, MMIO) */
 #define LAPIC_ID        0x020
@@ -247,7 +248,7 @@ lapic_timer_init(uint32_t hz)
 	lapic_timer_count = count;
 
 	/* Configure LAPIC timer: periodic mode, vector 32 (same as PIT was) */
-	lapic_write(LAPIC_LVT_TIMER, TIMER_PERIODIC | 32);
+	lapic_write(LAPIC_LVT_TIMER, TIMER_PERIODIC | VEC_TIMER);
 	lapic_write(LAPIC_TIMER_DCR, 0x03);	/* Divide by 16. */
 	lapic_write(LAPIC_TIMER_ICR, count);
 
@@ -265,7 +266,7 @@ lapic_timer_init_count(uint32_t count)
 {
 	if (!lapic_base)
 		return;
-	lapic_write(LAPIC_LVT_TIMER, TIMER_PERIODIC | 32);
+	lapic_write(LAPIC_LVT_TIMER, TIMER_PERIODIC | VEC_TIMER);
 	lapic_write(LAPIC_TIMER_DCR, 0x03);	/* Divide by 16. */
 	lapic_write(LAPIC_TIMER_ICR, count);
 }

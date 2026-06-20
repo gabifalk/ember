@@ -12,6 +12,7 @@
 #include "ember/syscall.h"
 #include "ember/heap.h"
 #include "ember/bkl.h"
+#include "ember/vectors.h"
 #include "ember/paging.h"
 #include "ember/acpi.h"
 
@@ -64,8 +65,8 @@ void pic_init(void) {
     outb(PIC2_CMD, 0x11);
 
     /* ICW2: vector offsets. */
-    outb(PIC1_DATA, 32);   /* IRQ 0-7  -> vectors 32-39. */
-    outb(PIC2_DATA, 40);   /* IRQ 8-15 -> vectors 40-47. */
+    outb(PIC1_DATA, IRQ_VECTOR_BASE);   /* IRQ 0-7  -> vectors 32-39. */
+    outb(PIC2_DATA, IRQ_VECTOR_BASE + 8);   /* IRQ 8-15 -> vectors 40-47. */
 
     /* ICW3: wiring. */
     outb(PIC1_DATA, 4);    /* Slave on IRQ2. */

@@ -4,6 +4,7 @@
 
 #include "ember/console.h"
 #include "ember/isr.h"
+#include "ember/vectors.h"
 #include "ember/proc.h"
 #include "ember/signal.h"
 #include "ember/sched.h"
@@ -43,18 +44,18 @@ static int
 vector_to_signal(uint64_t vector)
 {
 	switch (vector) {
-	case 0:
-		return SIGFPE;	/* #DE divide error. */
-	case 6:
-		return SIGILL;	/* #UD undefined opcode. */
-	case 11:
-		return SIGSEGV;	/* #NP segment not present. */
-	case 12:
-		return SIGSEGV;	/* #SS stack segment fault. */
-	case 13:
-		return SIGSEGV;	/* #GP general protection. */
-	case 14:
-		return SIGSEGV;	/* #PF page fault. */
+	case VEC_DE:
+		return SIGFPE;	/* divide error. */
+	case VEC_UD:
+		return SIGILL;	/* undefined opcode. */
+	case VEC_NP:
+		return SIGSEGV;	/* segment not present. */
+	case VEC_SS:
+		return SIGSEGV;	/* stack segment fault. */
+	case VEC_GP:
+		return SIGSEGV;	/* general protection. */
+	case VEC_PF:
+		return SIGSEGV;	/* page fault. */
 	default:
 		return SIGSEGV;
 	}
@@ -65,7 +66,7 @@ isr_handler(isr_frame_t * frame)
 {
 	BUG_ON(cpu_count > 1 && !bkl_held_by_this_cpu());
 	/* #DB (vector 1): clear DR6 and resume. */
-	if (frame->vector == 1) {
+	if (frame->vector == VEC_DB) {
 		uint64_t z = 0;
 		__asm__ __volatile__("mov %0, %%dr6"::"r"(z));
 		return 0;
@@ -75,7 +76,7 @@ isr_handler(isr_frame_t * frame)
 	 * CoW page fault handling -- must run for both kernel and user mode,
 	 * since the kernel writes to user CoW pages during syscalls (read, etc.)
 	 */
-	if (frame->vector == 14) {
+	if (frame->vector == VEC_PF) {
 		uint64_t fault_addr;
 		__asm__ __volatile__("mov %%cr2, %0":"=r"(fault_addr));
 		uint64_t err = frame->error_code;
@@ -92,7 +93,7 @@ isr_handler(isr_frame_t * frame)
 
 	if (cpl == 3) {
 		/* User-mode fault. */
-		if (frame->vector == 3) {
+		if (frame->vector == VEC_BP) {
 			/* Int3 breakpoint -- non-fatal, resume. */
 			return 0;
 		}
@@ -122,7 +123,7 @@ isr_handler(isr_frame_t * frame)
 			write_hex_u64(frame->error_code);
 			console_write(" rip=");
 			write_hex_u64(frame->rip);
-			if (frame->vector == 14) {
+			if (frame->vector == VEC_PF) {
 				uint64_t cr2;
 				__asm__ __volatile__("mov %%cr2, %0":"=r"(cr2));
 				console_write(" cr2=");
@@ -399,7 +400,7 @@ isr_handler(isr_frame_t * frame)
 	write_hex_u64(frame->error_code);
 	console_write(" rip=");
 	write_hex_u64(frame->rip);
-	if (frame->vector == 14) {
+	if (frame->vector == VEC_PF) {
 		uint64_t cr2;
 		__asm__ __volatile__("mov %%cr2, %0":"=r"(cr2));
 		console_write(" cr2=");

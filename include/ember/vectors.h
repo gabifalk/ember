@@ -15,7 +15,8 @@
 #define VEC_PF	14		/* page fault */
 
 /* IRQ / IPI vectors (Ember allocation, 32..255). */
-#define VEC_TIMER		32	/* LAPIC/PIT timer */
+#define IRQ_VECTOR_BASE		32	/* remapped IRQs start here (0..31 = exceptions) */
+#define VEC_TIMER		IRQ_VECTOR_BASE	/* timer is IRQ0 */
 #define VEC_SCHED_KICK		0x40	/* IPI: wake idle CPUs to reschedule */
 #define VEC_TLB_SHOOTDOWN	0x41	/* IPI: remote TLB flush */
 
