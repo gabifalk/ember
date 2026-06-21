@@ -16,6 +16,6 @@ uint64_t pmm_get_total_pages(void);
 uint64_t pmm_get_free_pages(void);
 void pmm_page_ref(uint64_t paddr);
 uint16_t pmm_page_refcount(uint64_t paddr);
-int pmm_page_try_exclusive(uint64_t paddr);
+int pmm_cow_unshare(uint64_t paddr);
 
 #endif

@@ -389,7 +389,7 @@ pmm_page_refcount(uint64_t paddr)
 }
 
 int
-pmm_page_try_exclusive(uint64_t paddr)
+pmm_cow_unshare(uint64_t paddr)
 {
 	uint64_t flags = spin_lock_irqsave(&pmm_lock);
 	uint64_t idx = paddr / PAGE_SIZE;

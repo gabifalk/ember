@@ -381,7 +381,7 @@ paging_handle_cow(uint64_t pml4_phys, uint64_t fault_addr)
 	uint64_t old_phys = *pte & PTE_ADDR_MASK;
 	uint64_t flags = *pte & ~PTE_ADDR_MASK;
 
-	if (pmm_page_try_exclusive(old_phys)) {
+	if (pmm_cow_unshare(old_phys)) {
 		*pte = old_phys | ((flags & ~PTE_COW) | PTE_WRITABLE);
 	} else {
 		uint64_t new_phys = pmm_alloc_page();
