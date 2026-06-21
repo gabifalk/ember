@@ -116,13 +116,11 @@ paging_clone_user_pml4(uint64_t src_pml4_phys)
 	uint64_t *src4 = (uint64_t *) phys_to_virt(src_pml4_phys);
 	uint64_t *dst4 = (uint64_t *) phys_to_virt(new_pml4);
 
-	/* Copy kernel-half entries from current CR3. */
+	/* Share the entire kernel half (PML4 indices 256..511) from current CR3. */
 	uint64_t cur_pml4 = read_cr3() & PTE_ADDR_MASK;
 	uint64_t *cur4 = (uint64_t *) phys_to_virt(cur_pml4);
-	uint64_t kidx = (KERNEL_BASE >> 39) & 0x1ff;
-	uint64_t hidx = (HHDM_BASE >> 39) & 0x1ff;
-	dst4[kidx] = cur4[kidx];
-	dst4[hidx] = cur4[hidx];
+	for (int i = 256; i < 512; i++)
+		dst4[i] = cur4[i];
 
 	/* Deep-copy ALL user-half entries (indices 0..255) */
 	for (int i4 = 0; i4 < 256; i4++) {
@@ -361,11 +359,8 @@ paging_create_user_pml4(void)
 	uint64_t *src = (uint64_t *) phys_to_virt(cur_pml4);
 	uint64_t *dst = (uint64_t *) phys_to_virt(new_pml4);
 
-	/* Share kernel-half entries. */
-	uint64_t kidx = (KERNEL_BASE >> 39) & 0x1ff;	/* 511. */
-	uint64_t hidx = (HHDM_BASE >> 39) & 0x1ff;	/* 256. */
-	dst[kidx] = src[kidx];
-	dst[hidx] = src[hidx];
+	for (int i = 256; i < 512; i++)
+		dst[i] = src[i];
 
 	/* PML4[0] starts empty -- elf_load_user will populate it. */
 	return new_pml4;
