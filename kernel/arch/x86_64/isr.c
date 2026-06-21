@@ -83,7 +83,13 @@ isr_handler(isr_frame_t * frame)
 		/* Write fault (bit 1) on present page (bit 0) in user-space address -> possible COW. */
 		if ((err & 0x3) == 0x3 && fault_addr < 0x0000800000000000ULL) {
 			proc_t *cur = current_proc;
-			if (cur
+			/*
+			 * VMA is authoritative: only copy-on-write if the faulting
+			 * address lies in a writable region.  A write to a
+			 * read-only VMA is a protection violation -> fall through
+			 * to SIGSEGV.
+			 */
+			if (cur && vma_addr_writable(cur, fault_addr)
 			    && paging_handle_cow(cur->pml4_phys, fault_addr))
 				return 0;	/* Handled, resume. */
 		}

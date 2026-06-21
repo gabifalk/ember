@@ -101,6 +101,14 @@ vma_remove(proc_t * p, uint64_t start, uint64_t length)
 	}
 }
 
+/* True if addr falls in a VMA that permits writes (protection authority). */
+int
+vma_addr_writable(proc_t * p, uint64_t addr)
+{
+	vma_t *v = vma_find(p, addr);
+	return v && (v->prot & PROT_WRITE);
+}
+
 static uint64_t
 prot_to_pte(uint8_t prot)
 {
@@ -373,13 +381,16 @@ do_mprotect(syscall_frame_t * f)
 			uint64_t pa = *pte & PTE_ADDR_MASK;
 			if (pte_flags) {
 				/*
-				 * Preserve COW bit: mprotect must not silently make a
-				 * COW-shared page writable -- the write fault handler
-				 * must still fire to copy the page first.
-				 * Verified: models/unified_smp.pml (P2/P8, BUGGY_MPROTECT).
+				 * Never hand write access to a shared frame: if the
+				 * page is shared, map it read-only + COW so the next
+				 * write faults and copies first (granting W directly
+				 * would alias the frame across a fork).  When write is
+				 * not granted, pte_flags carries no COW, so a later
+				 * write to the now-read-only page faults to SIGSEGV.
+				 * Verified: models/cow_vma_prot.pml, mprotect_revoke.pml.
 				 */
-				uint64_t cow = *pte & PTE_COW;
-				if (cow)
+				if ((pte_flags & PTE_WRITABLE)
+				    && pmm_page_refcount(pa) > 1)
 					pte_flags =
 					    (pte_flags & ~PTE_WRITABLE) |
 					    PTE_COW;

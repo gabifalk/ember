@@ -83,6 +83,7 @@ typedef struct proc {
 } proc_t;
 
 int vma_add(proc_t *p, uint64_t start, uint64_t length, uint8_t prot);
+int vma_addr_writable(proc_t *p, uint64_t addr);
 
 /* Return 16-byte aligned pointer within p->fxsave_area. */
 static inline uint8_t *fxsave_ptr(proc_t *p)
