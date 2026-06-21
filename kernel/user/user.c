@@ -59,6 +59,16 @@ map_user_stack(uint64_t pml4)
 	return USER_STACK_TOP;
 }
 
+void
+setup_image_vmas(proc_t * p, elf_info_t * info)
+{
+	for (int i = 0; i < info->nsegs; i++)
+		vma_add(p, info->segs[i].vaddr, info->segs[i].len,
+			info->segs[i].prot);
+	vma_add(p, USER_STACK_TOP - USER_STACK_PAGES * PAGE_SIZE,
+		USER_STACK_PAGES * PAGE_SIZE, PROT_READ | PROT_WRITE);
+}
+
 static uint64_t
 str_len(const char *s)
 {
@@ -245,6 +255,7 @@ user_run_init(void)
 	init->brk = info.brk_base;
 	init->brk_base = info.brk_base;
 	init->mmap_next = 0x7f0000000000ULL;
+	setup_image_vmas(init, &info);
 	set_bsp_current_proc(init);
 
 	/*

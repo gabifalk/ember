@@ -23,7 +23,7 @@ pml4_is_shared(proc_t * cur)
 }
 
 /* ---- VMA helpers ---- */
-static int
+int
 vma_add(proc_t * p, uint64_t start, uint64_t length, uint8_t prot)
 {
 	/* Try to merge with an adjacent VMA that has the same prot. */
@@ -151,6 +151,9 @@ do_brk(syscall_frame_t * f)
 			paging_map_range(*pml4_ptr, va, pa, PAGE_SIZE,
 					 PTE_PRESENT | PTE_USER | PTE_WRITABLE);
 		}
+		if (new_page > old_page)
+			vma_add(current_proc, old_page, new_page - old_page,
+				PROT_READ | PROT_WRITE);
 	} else if (addr < *brk_ptr) {
 		/* Shrink: unmap and free pages above new brk. */
 		uint64_t new_page = (addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
@@ -166,6 +169,8 @@ do_brk(syscall_frame_t * f)
 				pmm_free_page(pa);
 			}
 		}
+		if (old_page > new_page)
+			vma_remove(current_proc, new_page, old_page - new_page);
 	}
 	*brk_ptr = addr;
 	f->rax = addr;

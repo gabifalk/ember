@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include "ember/elf.h"
+#include "ember/proc.h"
 
 void enter_user(uint64_t rip, uint64_t rsp);
 void user_run_init(void);
@@ -16,5 +17,8 @@ uint64_t setup_user_stack(uint64_t pml4, elf_info_t * info);
 uint64_t setup_user_stack_argv(uint64_t pml4, elf_info_t * info,
 			       const char **argv, int argc,
 			       const char **envp, int envc);
+
+/* Install VMAs for a freshly loaded image: ELF segments + the user stack. */
+void setup_image_vmas(proc_t * p, elf_info_t * info);
 
 #endif

@@ -42,12 +42,22 @@ typedef struct {
 #define PF_W 2
 #define PF_R 4
 
+#define ELF_MAX_SEGS 8
+
+typedef struct {
+	uint64_t vaddr;		/* page-aligned segment start */
+	uint64_t len;		/* page-aligned segment length */
+	uint8_t prot;		/* PROT_* bits for the region's VMA */
+} elf_seg_t;
+
 typedef struct {
 	uint64_t entry;		/* e_entry. */
 	uint64_t phdr_vaddr;	/* VA of PHDR table (within first PT_LOAD) */
 	uint16_t phentsize;	/* e_phentsize (56) */
 	uint16_t phnum;		/* e_phnum. */
 	uint64_t brk_base;	/* Page-aligned end of last PT_LOAD memsz. */
+	elf_seg_t segs[ELF_MAX_SEGS];	/* PT_LOAD regions, for VMA creation. */
+	int nsegs;
 } elf_info_t;
 
 #endif

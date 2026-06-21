@@ -320,9 +320,10 @@ do_execve_inner(syscall_frame_t * f, const char *resolved_path,
 		cur->exe_path[ei] = '\0';
 	}
 
-	/* Clear VMAs from old address space. */
+	/* Clear VMAs from old address space, install the new image's. */
 	for (int i = 0; i < MAX_VMAS; i++)
 		cur->vmas[i].used = 0;
+	setup_image_vmas(cur, &info);
 
 	/* Close O_CLOEXEC fds. */
 	for (int i = 0; i < MAX_FDS; i++) {

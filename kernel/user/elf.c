@@ -10,6 +10,7 @@
 #include "ember/mmu.h"
 #include "ember/console.h"
 #include "ember/heap.h"
+#include "ember/syscall.h"
 
 static int
 elf_validate(const elf64_ehdr_t * eh)
@@ -154,6 +155,8 @@ elf_load_user(vfs_node_t * node, uint64_t pml4, elf_info_t * info)
 	uint64_t first_load_offset = 0;
 	int found_first_load = 0;
 
+	info->nsegs = 0;
+
 	for (uint16_t i = 0; i < e_phnum; i++) {
 		const elf64_phdr_t *ph =
 		    (const elf64_phdr_t *)(phdr_data +
@@ -176,6 +179,15 @@ elf_load_user(vfs_node_t * node, uint64_t pml4, elf_info_t * info)
 		uint64_t seg_start = vaddr & ~(PAGE_SIZE - 1);
 		uint64_t seg_end_aligned =
 		    (seg_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+
+		if (info->nsegs < ELF_MAX_SEGS) {
+			info->segs[info->nsegs].vaddr = seg_start;
+			info->segs[info->nsegs].len =
+			    seg_end_aligned - seg_start;
+			/* Phase 1: match the current RW mapping. */
+			info->segs[info->nsegs].prot = PROT_READ | PROT_WRITE;
+			info->nsegs++;
+		}
 
 		uint64_t flags = PTE_PRESENT | PTE_USER | PTE_WRITABLE;
 

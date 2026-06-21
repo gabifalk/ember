@@ -82,6 +82,8 @@ typedef struct proc {
 	uint8_t kstack[PROC_KSTACK_SIZE] __attribute__ ((aligned(16)));
 } proc_t;
 
+int vma_add(proc_t *p, uint64_t start, uint64_t length, uint8_t prot);
+
 /* Return 16-byte aligned pointer within p->fxsave_area. */
 static inline uint8_t *fxsave_ptr(proc_t *p)
 {
