@@ -142,6 +142,17 @@ foreach name : ['test_ud', 'test_pf', 'test_int3']
   )
 endforeach
 
+# --- Freestanding W^X / mprotect test (native cc, own _start, no libc) ---
+# Real read-execute .text and raw syscalls -- the W^X-negative and mprotect
+# paths the monolithic-RWX M2 binaries and libc inits cannot express.
+init_wx_mprotect = custom_target('init_wx_mprotect',
+  output: 'init_wx_mprotect',
+  input: 'init_wx_mprotect.c',
+  command: [cc_prog, '-static', '-no-pie', '-nostdlib', '-ffreestanding',
+            '-fno-stack-protector', '-march=x86-64', '-mno-avx',
+            '-Wl,-z,separate-code', '-o', '@OUTPUT@', '@INPUT@'],
+)
+
 # --- Ext2 images ---
 mkext2 = find_program('../scripts/mkext2img.sh')
 ext2_img = custom_target('ext2.img',
@@ -435,6 +446,19 @@ _esp = custom_target(_name,
   command: _bt_base + ['@OUTPUT@', init_bins['init_fd_exec']] + _fd_exec_extra_args,
 )
 test('fd-exec', run_test,
+  args: [_esp],
+  depends: [_esp],
+  timeout: 60,
+)
+
+# --- W^X / mprotect freestanding test (bare cpio) ---
+_name = 'esp-wx-mprotect'
+_esp = custom_target(_name,
+  output: _name + '.img',
+  depends: _bt_deps + [init_wx_mprotect],
+  command: _bt_base + ['@OUTPUT@', init_wx_mprotect],
+)
+test('wx-mprotect', run_test,
   args: [_esp],
   depends: [_esp],
   timeout: 60,
