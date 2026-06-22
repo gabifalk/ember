@@ -26,28 +26,29 @@
 bool vma_w[N];          /* VMA permits writes, per page */
 
 inline mprotect_relro() {
-    int i = 0;
+    k = 0;
     do
-    :: i < N ->
+    :: k < N ->
 #ifdef BUGGY
         /* vma_find(addr) returns the whole data VMA; its prot is overwritten. */
-        vma_w[i] = false
+        vma_w[k] = false
 #else
         /* Split: only the requested sub-range changes. */
         if
-        :: i < RELRO -> vma_w[i] = false
+        :: k < RELRO -> vma_w[k] = false
         :: else -> skip            /* pages behind RELRO keep write perm */
         fi
 #endif
         ;
-        i++
-    :: i >= N -> break
+        k++
+    :: k >= N -> break
     od
 }
 
 active proctype P() {
     /* Loader: the whole read-write data segment is writable. */
     int i = 0;
+    int k = 0;
     do
     :: i < N -> vma_w[i] = true; i++
     :: i >= N -> break
