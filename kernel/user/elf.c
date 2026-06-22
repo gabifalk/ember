@@ -180,28 +180,51 @@ elf_load_user(vfs_node_t * node, uint64_t pml4, elf_info_t * info)
 		uint64_t seg_end_aligned =
 		    (seg_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 
+		/*
+		 * Honor segment protection (W^X): code maps read-execute, data
+		 * read-write, rodata read-only.  The VMA carries the same prot
+		 * so the page-fault path enforces it.
+		 */
+		uint8_t prot = 0;
+		if (ph->p_flags & PF_R)
+			prot |= PROT_READ;
+		if (ph->p_flags & PF_W)
+			prot |= PROT_WRITE;
+		if (ph->p_flags & PF_X)
+			prot |= PROT_EXEC;
+
 		if (info->nsegs < ELF_MAX_SEGS) {
 			info->segs[info->nsegs].vaddr = seg_start;
 			info->segs[info->nsegs].len =
 			    seg_end_aligned - seg_start;
-			/* Phase 1: match the current RW mapping. */
-			info->segs[info->nsegs].prot = PROT_READ | PROT_WRITE;
+			info->segs[info->nsegs].prot = prot;
 			info->nsegs++;
 		}
 
-		uint64_t flags = PTE_PRESENT | PTE_USER | PTE_WRITABLE;
+		uint64_t flags = PTE_PRESENT | PTE_USER;
+		if (ph->p_flags & PF_W)
+			flags |= PTE_WRITABLE;
+		if (!(ph->p_flags & PF_X))
+			flags |= PTE_NX;
 
 		for (uint64_t va = seg_start; va < seg_end_aligned;
 		     va += PAGE_SIZE) {
 			/*
 			 * If a previous PT_LOAD already mapped this page (segments
-			 * sharing a boundary page), reuse the existing mapping.
-			 * Without this check the old PA is leaked and its data lost.
-			 * Verified: models/elf_overlap.pml.
+			 * sharing a boundary page), reuse it but take the UNION of
+			 * permissions: a writable or executable segment sharing the
+			 * page must win, else a write to .data on the shared page
+			 * would fault.  Verified: models/elf_overlap.pml,
+			 * models/wx_shared_page.pml.
 			 */
 			uint64_t *pte = paging_walk_pte(pml4, va);
-			if (pte && (*pte & PTE_PRESENT))
+			if (pte && (*pte & PTE_PRESENT)) {
+				if (flags & PTE_WRITABLE)
+					*pte |= PTE_WRITABLE;
+				if (!(flags & PTE_NX))
+					*pte &= ~PTE_NX;
 				continue;
+			}
 			uint64_t pa = pmm_alloc_page();
 			if (pa == UINT64_MAX) {
 				if (phdr_buf)

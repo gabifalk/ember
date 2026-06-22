@@ -101,12 +101,24 @@ vma_remove(proc_t * p, uint64_t start, uint64_t length)
 	}
 }
 
-/* True if addr falls in a VMA that permits writes (protection authority). */
+/*
+ * True if addr falls in a VMA that permits writes (protection authority).
+ * Scans ALL covering VMAs and reports the union: where a read-only and a
+ * read-write segment share a boundary page they create overlapping VMAs, and
+ * the writable one must win (else a write to .data on the shared page is
+ * wrongly denied).  Verified: models/wx_shared_page.pml.
+ */
 int
 vma_addr_writable(proc_t * p, uint64_t addr)
 {
-	vma_t *v = vma_find(p, addr);
-	return v && (v->prot & PROT_WRITE);
+	for (int i = 0; i < MAX_VMAS; i++) {
+		if (p->vmas[i].used
+		    && addr >= p->vmas[i].start
+		    && addr < p->vmas[i].start + p->vmas[i].length
+		    && (p->vmas[i].prot & PROT_WRITE))
+			return 1;
+	}
+	return 0;
 }
 
 static uint64_t
@@ -414,10 +426,21 @@ do_mprotect(syscall_frame_t * f)
 	if (pml4_is_shared(cur))
 		smp_flush_tlb();
 
-	/* Update VMA prot if found. */
-	vma_t *v = vma_find(cur, addr);
-	if (v)
-		v->prot = (uint8_t) prot;
+	/*
+	 * Update the VMA layer for exactly [addr, end).  Carve the sub-range
+	 * out (vma_remove splits a covering VMA, preserving the surrounding
+	 * pages' prot) and re-add it with the new prot.  Overwriting the whole
+	 * covering VMA's prot would wrongly re-protect pages outside the range:
+	 * glibc/musl mprotect their GNU_RELRO sub-range (the front of the data
+	 * segment) to read-only at startup, which would otherwise mark the
+	 * entire data segment -- including .bss behind RELRO -- read-only and
+	 * make every .bss write after a fork SIGSEGV.
+	 * Verified: models/mprotect_split.pml.
+	 */
+	if (end > addr) {
+		vma_remove(cur, addr, end - addr);
+		vma_add(cur, addr, end - addr, (uint8_t) prot);
+	}
 
 	f->rax = 0;
 	return 0;
