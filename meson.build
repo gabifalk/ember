@@ -55,6 +55,7 @@ all_src = files(
   'kernel/kmain.c',
   'kernel/mm/pmm.c',
   'kernel/mm/heap.c',
+  'kernel/dev/pci.c',
   'kernel/dev/blkdev.c',
   'kernel/dev/ahci.c',
   'kernel/dev/ata.c',

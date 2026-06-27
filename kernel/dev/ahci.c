@@ -7,11 +7,9 @@
 #include "ember/io.h"
 #include "ember/mmu.h"
 #include "ember/paging.h"
+#include "ember/pci.h"
 #include "ember/pmm.h"
 #include "ember/console.h"
-
-#define PCI_CONFIG_ADDR 0xCF8
-#define PCI_CONFIG_DATA 0xCFC
 
 /* PCI class code triple for AHCI controllers. */
 #define PCI_CLASS_MASS_STORAGE 0x01
@@ -49,36 +47,6 @@ static uint64_t cmd_list_phys, recv_fis_phys, cmd_table_phys;
  */
 static uint8_t *bounce_buf;
 static uint64_t bounce_phys;
-
-/* ---- PCI helpers ---- */
-
-static uint32_t
-pci_cfg_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
-{
-	uint32_t addr = 0x80000000u | ((uint32_t) bus << 16)
-	    | ((uint32_t) dev << 11)
-	    | ((uint32_t) fn << 8)
-	    | (off & 0xfc);
-	outl(PCI_CONFIG_ADDR, addr);
-	return inl(PCI_CONFIG_DATA);
-}
-
-static void
-pci_cfg_write32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off, uint32_t val)
-{
-	uint32_t addr = 0x80000000u | ((uint32_t) bus << 16)
-	    | ((uint32_t) dev << 11)
-	    | ((uint32_t) fn << 8)
-	    | (off & 0xfc);
-	outl(PCI_CONFIG_ADDR, addr);
-	outl(PCI_CONFIG_DATA, val);
-}
-
-static uint16_t
-pci_vendor_id(uint8_t bus, uint8_t dev, uint8_t fn)
-{
-	return (uint16_t) (pci_cfg_read32(bus, dev, fn, 0x00) & 0xffff);
-}
 
 /* ---- Debug printing ---- */
 
@@ -244,56 +212,17 @@ ahci_identify(volatile ahci_port_regs_t * port)
 int
 ahci_probe(void)
 {
-	uint8_t found_bus = 0, found_dev = 0, found_fn = 0;
-	int found = 0;
-
-	/* PCI scan: find AHCI controller. */
-	for (uint16_t bus = 0; bus < 256 && !found; bus++) {
-		for (uint8_t dev = 0; dev < 32 && !found; dev++) {
-			for (uint8_t fn = 0; fn < 8 && !found; fn++) {
-				if (pci_vendor_id((uint8_t) bus, dev, fn) ==
-				    0xffff)
-					continue;
-
-				uint32_t classreg =
-				    pci_cfg_read32((uint8_t) bus, dev, fn,
-						   0x08);
-				uint8_t class_code = (uint8_t) (classreg >> 24);
-				uint8_t subclass = (uint8_t) (classreg >> 16);
-				uint8_t prog_if = (uint8_t) (classreg >> 8);
-				if (class_code != PCI_CLASS_MASS_STORAGE
-				    || subclass != PCI_SUBCLASS_SATA
-				    || prog_if != PCI_PROGIF_AHCI) {
-					continue;
-				}
-
-				found_bus = (uint8_t) bus;
-				found_dev = dev;
-				found_fn = fn;
-				found = 1;
-			}
-		}
-	}
-
-	if (!found)
+	pci_dev_t pd = pci_find_by_class(PCI_CLASS_MASS_STORAGE,
+					 PCI_SUBCLASS_SATA, PCI_PROGIF_AHCI);
+	if (!pd.found)
 		return -1;
-
-	/* Enable PCI Bus Master. */
-	uint32_t pci_cmd = pci_cfg_read32(found_bus, found_dev, found_fn, 0x04);
-	pci_cmd |= (1u << 2);	/* Bus Master Enable. */
-	pci_cfg_write32(found_bus, found_dev, found_fn, 0x04, pci_cmd);
-
-	/* Map ABAR (BAR5) */
-	uint32_t bar5 = pci_cfg_read32(found_bus, found_dev, found_fn, 0x24);
-	if ((bar5 & 0x1u) != 0) {
-		console_write("AHCI: BAR5 is I/O space; unsupported\n");
+	int is_mmio;
+	uint64_t abar_phys = pci_bar(pd, 5, &is_mmio);	/* AHCI ABAR is BAR5. */
+	if (!is_mmio || abar_phys == 0) {
+		console_write("AHCI: ABAR is not valid MMIO\n");
 		return -1;
 	}
-	uint64_t abar_phys = (uint64_t) (bar5 & ~0x0fu);
-	if (abar_phys == 0) {
-		console_write("AHCI: ABAR is zero\n");
-		return -1;
-	}
+	pci_enable_bus_master(pd);
 
 	/* Map ABAR into HHDM. */
 	{
