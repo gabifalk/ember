@@ -475,14 +475,19 @@ test('wx-mprotect', run_test,
 
 # --- IRQ self-test (boot-time self-IPI exercises dispatch path) ---
 _name = 'esp-irq-selftest'
-_esp = custom_target(_name,
+_esp_irq = custom_target(_name,
   output: _name + '.img',
   depends: _bt_deps + [init_irqtest],
   command: _bt_base + ['@OUTPUT@', init_irqtest],
 )
 test('irq-selftest', run_test,
-  args: [_esp],
-  depends: [_esp],
+  args: [_esp_irq],
+  depends: [_esp_irq],
+  timeout: 60,
+)
+test('irq-selftest-smp', run_test,
+  args: [_esp_irq, '--smp', '2'],
+  depends: [_esp_irq],
   timeout: 60,
 )
 

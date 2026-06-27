@@ -31,16 +31,20 @@ uint64_t kernel_idle_cr3;  /* Safe CR3 for idle CPUs (set by kmain) */
 /*
  * Non-inline wrappers callable from assembly entry points.
  *
- * Nesting: bkl_acquire_entry skips if already held (nested exception
- * during syscall).  bkl_release_entry always releases.  For kernel-mode
- * exceptions, isr_common's CS check skips the release call entirely,
- * so the nested acquire/release is balanced.  For user-mode returns,
- * the release is correct (the caller that acquired BKL is returning).
+ * bkl_acquire_entry: acquire iff not already held by this CPU.
+ * Returns 1 if the lock was acquired here (caller must release), 0 if it was
+ * already held (nested entry) or SMP is off (no-op).  isr_irq_common uses
+ * the return value to release iff acquired, closing the kernel-mode SMP hazard.
+ * isr_common and isr_timer ignore the return value (always user-mode path).
+ *
+ * bkl_release_entry: unconditional release; only called when the acquire
+ * returned 1 (or, for isr_common/isr_timer, always on user-mode return).
  */
-void bkl_acquire_entry(void) {
-    if (cpu_count <= 1) return;          /* Fast path: single CPU. */
-    if (bkl_held_by_this_cpu()) return;  /* Nested entry (interrupt in kernel) */
+int bkl_acquire_entry(void) {
+    if (cpu_count <= 1) return 0;          /* Fast path: single CPU, BKL is a no-op. */
+    if (bkl_held_by_this_cpu()) return 0;  /* Nested entry (interrupt in kernel). */
     bkl_acquire();
+    return 1;                              /* Acquired here; caller must release. */
 }
 
 void bkl_release_entry(void) {

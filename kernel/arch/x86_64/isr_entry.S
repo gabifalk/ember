@@ -309,14 +309,12 @@ isr_tlb_shootdown:
  * take the BKL and follow the same swapgs discipline as isr_common.
  * EOI is issued by irq_dispatch() (C), not here.
  *
- * BKL discipline: the BKL is released only on user-mode return (CS & 3).
- * Kernel-mode return relies on the invariant that kernel code already holds
- * the BKL.  That invariant is violated by the boot self-test self-IPI
- * (kernel-mode device IRQ, BKL not held): under --smp>1 this causes an
- * acquire-and-leak - harmless at SMP=1 (bkl_acquire/release are no-ops)
- * and self-heals on the init process's first syscall, but DO NOT route real
- * device IRQs to non-BSP/idle CPUs until isr_irq_common releases the BKL
- * on kernel-mode-return-when-acquired.  This is a Plan B prerequisite.
+ * BKL discipline: bkl_acquire_entry returns 1 iff it acquired the lock.
+ * isr_irq_common stashes that flag in r15 and releases iff r15 != 0,
+ * regardless of user/kernel mode.  Nested kernel entries (already held)
+ * and single-CPU runs return 0 and skip the release - balanced.
+ * swapgs entry/exit remain CS-gated as before.  The kernel-mode SMP
+ * acquire-and-leak hazard is now closed.
  */
     .globl isr_irq_0
     .globl isr_irq_1
@@ -372,18 +370,17 @@ isr_irq_common:
     push %r14
     push %r15
 
-    /* Acquire BKL (no-op if already held, e.g. kernel-mode IRQ). */
+    /* Acquire BKL; eax = 1 iff acquired here. Keep it in r15 across the C call
+     * (callee-saved, original r15 already saved on the stack). */
     call bkl_acquire_entry
+    mov %eax, %r15d
 
-    /* irq_dispatch(vector): vector is at rsp + 15*8 = rsp + 0x78. */
+    /* irq_dispatch(vector): vector at rsp + 15*8 = rsp + 0x78. */
     mov 0x78(%rsp), %rdi
     call irq_dispatch
 
-    /* Release BKL if returning to user mode.
-     * After 15 GPR pushes the stack is:
-     *   [r15..rax][vector][rip][cs]...
-     * vector at rsp+0x78, rip at rsp+0x80, cs at rsp+0x88. */
-    testq $3, 0x88(%rsp)
+    /* Release the BKL iff we acquired it (any mode), not based on CS. */
+    test %r15, %r15
     jz .Lirq_no_bkl_release
     call bkl_release_entry
 .Lirq_no_bkl_release:

@@ -57,7 +57,7 @@ qemu-system-x86_64 \
     -smp "$SMP" \
     -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
     -drive if=pflash,format=raw,file="$vars_copy" \
-    -drive if=none,format=raw,id=usbdisk,file="$ESP_IMG" \
+    -drive if=none,format=raw,readonly=on,id=usbdisk,file="$ESP_IMG" \
     -device usb-ehci \
     -device usb-storage,drive=usbdisk \
     $EXT2_ARGS \
