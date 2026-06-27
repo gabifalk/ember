@@ -18,4 +18,7 @@ void irq_dispatch(int vector);
 void irq_route_pci(uint8_t gsi, uint8_t vector, uint8_t dest_lapic_id,
 		   irq_handler_t handler);
 
+/* Boot self-test: self-IPI exercises the dispatch path. Prints to serial. */
+void irq_selftest(void);
+
 #endif				/* EMBER_IRQ_H. */

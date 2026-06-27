@@ -122,6 +122,9 @@ kmain(boot_info_v1_t * bi)
 		pic_init();
 		timer_init();
 	}
+	extern void irq_selftest(void);
+	irq_selftest();
+
 	fd_init();
 	blkdev_init();
 	blkcache_init();

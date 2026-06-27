@@ -153,6 +153,15 @@ init_wx_mprotect = custom_target('init_wx_mprotect',
             '-Wl,-z,separate-code', '-o', '@OUTPUT@', '@INPUT@'],
 )
 
+# --- Freestanding IRQ self-test init (own _start, no libc) ---
+init_irqtest = custom_target('init_irqtest',
+  output: 'init_irqtest',
+  input: 'init_irqtest.c',
+  command: [cc_prog, '-static', '-no-pie', '-nostdlib', '-ffreestanding',
+            '-fno-stack-protector', '-march=x86-64', '-mno-avx',
+            '-Wl,-z,separate-code', '-o', '@OUTPUT@', '@INPUT@'],
+)
+
 # --- Ext2 images ---
 mkext2 = find_program('../scripts/mkext2img.sh')
 ext2_img = custom_target('ext2.img',
@@ -459,6 +468,19 @@ _esp = custom_target(_name,
   command: _bt_base + ['@OUTPUT@', init_wx_mprotect],
 )
 test('wx-mprotect', run_test,
+  args: [_esp],
+  depends: [_esp],
+  timeout: 60,
+)
+
+# --- IRQ self-test (boot-time self-IPI exercises dispatch path) ---
+_name = 'esp-irq-selftest'
+_esp = custom_target(_name,
+  output: _name + '.img',
+  depends: _bt_deps + [init_irqtest],
+  command: _bt_base + ['@OUTPUT@', init_irqtest],
+)
+test('irq-selftest', run_test,
   args: [_esp],
   depends: [_esp],
   timeout: 60,
