@@ -303,6 +303,118 @@ isr_tlb_shootdown:
     .byte 0x48, 0xCF        /* iretq */
 
 /*
+ * Generic device-IRQ entry (vectors VEC_IRQ_BASE..VEC_IRQ_MAX).
+ * Each stub pushes its vector number then jmps to isr_irq_common.
+ * Unlike the IPI stubs, device handlers touch shared kernel state, so we
+ * take the BKL and follow the same swapgs discipline as isr_common.
+ * EOI is issued by irq_dispatch() (C), not here.
+ *
+ * BKL discipline: the BKL is released only on user-mode return (CS & 3).
+ * Kernel-mode return relies on the invariant that kernel code already holds
+ * the BKL.  That invariant is violated by the boot self-test self-IPI
+ * (kernel-mode device IRQ, BKL not held): under --smp>1 this causes an
+ * acquire-and-leak - harmless at SMP=1 (bkl_acquire/release are no-ops)
+ * and self-heals on the init process's first syscall, but DO NOT route real
+ * device IRQs to non-BSP/idle CPUs until isr_irq_common releases the BKL
+ * on kernel-mode-return-when-acquired.  This is a Plan B prerequisite.
+ */
+    .globl isr_irq_0
+    .globl isr_irq_1
+    .globl isr_irq_2
+    .globl isr_irq_3
+    .globl isr_irq_4
+    .globl isr_irq_5
+    .globl isr_irq_6
+    .globl isr_irq_7
+    .globl isr_irq_8
+    .globl isr_irq_9
+    .globl isr_irq_10
+    .globl isr_irq_11
+    .globl isr_irq_12
+    .globl isr_irq_13
+
+isr_irq_0:  pushq $0x42 ; jmp isr_irq_common
+isr_irq_1:  pushq $0x43 ; jmp isr_irq_common
+isr_irq_2:  pushq $0x44 ; jmp isr_irq_common
+isr_irq_3:  pushq $0x45 ; jmp isr_irq_common
+isr_irq_4:  pushq $0x46 ; jmp isr_irq_common
+isr_irq_5:  pushq $0x47 ; jmp isr_irq_common
+isr_irq_6:  pushq $0x48 ; jmp isr_irq_common
+isr_irq_7:  pushq $0x49 ; jmp isr_irq_common
+isr_irq_8:  pushq $0x4a ; jmp isr_irq_common
+isr_irq_9:  pushq $0x4b ; jmp isr_irq_common
+isr_irq_10: pushq $0x4c ; jmp isr_irq_common
+isr_irq_11: pushq $0x4d ; jmp isr_irq_common
+isr_irq_12: pushq $0x4e ; jmp isr_irq_common
+isr_irq_13: pushq $0x4f ; jmp isr_irq_common
+
+isr_irq_common:
+    /* Stack on entry: [vector][rip][cs][rflags][rsp][ss].
+     * CS is at rsp+16 right now (before saving GPRs). */
+    testq $3, 16(%rsp)
+    jz .Lirq_no_swapgs_entry
+    .byte 0x0f, 0x01, 0xf8  /* swapgs */
+.Lirq_no_swapgs_entry:
+
+    push %rax
+    push %rbx
+    push %rcx
+    push %rdx
+    push %rbp
+    push %rsi
+    push %rdi
+    push %r8
+    push %r9
+    push %r10
+    push %r11
+    push %r12
+    push %r13
+    push %r14
+    push %r15
+
+    /* Acquire BKL (no-op if already held, e.g. kernel-mode IRQ). */
+    call bkl_acquire_entry
+
+    /* irq_dispatch(vector): vector is at rsp + 15*8 = rsp + 0x78. */
+    mov 0x78(%rsp), %rdi
+    call irq_dispatch
+
+    /* Release BKL if returning to user mode.
+     * After 15 GPR pushes the stack is:
+     *   [r15..rax][vector][rip][cs]...
+     * vector at rsp+0x78, rip at rsp+0x80, cs at rsp+0x88. */
+    testq $3, 0x88(%rsp)
+    jz .Lirq_no_bkl_release
+    call bkl_release_entry
+.Lirq_no_bkl_release:
+
+    pop %r15
+    pop %r14
+    pop %r13
+    pop %r12
+    pop %r11
+    pop %r10
+    pop %r9
+    pop %r8
+    pop %rdi
+    pop %rsi
+    pop %rbp
+    pop %rdx
+    pop %rcx
+    pop %rbx
+    pop %rax
+    /* Stack now: [vector][rip][cs]... CS at rsp+16. */
+    testq $3, 16(%rsp)
+    jz .Lirq_kernel_ret
+    cli
+    .byte 0x0f, 0x01, 0xf8  /* swapgs */
+    add $8, %rsp            /* pop vector */
+    .byte 0x48, 0xCF        /* iretq */
+.Lirq_kernel_ret:
+    add $8, %rsp            /* pop vector */
+    .byte 0x48, 0xCF        /* iretq */
+
+/*
  * Double fault handler (vector 8).
  * Prints "DOUBLE FAULT" to serial and halts.  Without this, a double
  * fault causes an immediate triple fault (silent VM exit).

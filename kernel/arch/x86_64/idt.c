@@ -119,6 +119,20 @@ idt_init(void)
 	extern void isr_tlb_shootdown(void);
 	idt_set_gate(VEC_TLB_SHOOTDOWN, isr_tlb_shootdown);
 
+	extern void isr_irq_0(void), isr_irq_1(void), isr_irq_2(void), isr_irq_3(void);
+	extern void isr_irq_4(void), isr_irq_5(void), isr_irq_6(void), isr_irq_7(void);
+	extern void isr_irq_8(void), isr_irq_9(void), isr_irq_10(void), isr_irq_11(void);
+	extern void isr_irq_12(void), isr_irq_13(void);
+	void (*irq_stubs[14])(void) = {
+		isr_irq_0, isr_irq_1, isr_irq_2, isr_irq_3, isr_irq_4, isr_irq_5,
+		isr_irq_6, isr_irq_7, isr_irq_8, isr_irq_9, isr_irq_10, isr_irq_11,
+		isr_irq_12, isr_irq_13,
+	};
+	_Static_assert(VEC_IRQ_MAX - VEC_IRQ_BASE + 1 == 14,
+		       "device IRQ vector range must match the 14 isr_irq_* stubs");
+	for (int i = 0; i <= (VEC_IRQ_MAX - VEC_IRQ_BASE); i++)
+		idt_set_gate((uint8_t) (VEC_IRQ_BASE + i), irq_stubs[i]);
+
 	uint8_t idtr[10];
 	uint16_t limit = (uint16_t) (sizeof(idt) - 1);
 	uint64_t base = (uint64_t) (uintptr_t) idt;
