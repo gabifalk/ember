@@ -5,19 +5,17 @@
 
 #include <stdint.h>
 
-typedef void (*irq_handler_t) (int irq);
+typedef void (*irq_handler_t) (int vector);
 
-static inline void
-irq_register(int irq, irq_handler_t handler)
-{
-	(void)irq;
-	(void)handler;
-}
+/* Install a handler for a device IRQ vector (VEC_IRQ_BASE..VEC_IRQ_MAX). */
+void irq_set_handler(uint8_t vector, irq_handler_t handler);
 
-static inline void
-irq_dispatch(int vector)
-{
-	(void)vector;
-}
+/* Called from the asm interrupt entry: run the handler then LAPIC EOI. */
+void irq_dispatch(int vector);
+
+/* Route a PCI INTx (level-triggered, active-low) GSI to a vector + handler,
+ * targeting one LAPIC, and unmask it. */
+void irq_route_pci(uint8_t gsi, uint8_t vector, uint8_t dest_lapic_id,
+		   irq_handler_t handler);
 
 #endif				/* EMBER_IRQ_H. */

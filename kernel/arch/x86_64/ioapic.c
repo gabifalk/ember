@@ -160,3 +160,18 @@ ioapic_unmask(uint8_t irq)
 	lo &= ~(1 << 16);
 	ioapic_write(IOREDTBL(gsi), lo);
 }
+
+void
+ioapic_route_irq_level(uint8_t gsi, uint8_t vector, uint8_t dest_lapic_id)
+{
+	if ((int)gsi > ioapic_max_redir)
+		return;
+
+	/* Low dword: vector | level-triggered (bit15) | active-low (bit13),
+	 * delivery Fixed, physical dest, unmasked (bit16 clear). */
+	uint32_t lo = (uint32_t) vector | (1u << 15) | (1u << 13);
+	uint32_t hi = (uint32_t) dest_lapic_id << 24;
+
+	ioapic_write(IOREDTBL(gsi) + 1, hi);
+	ioapic_write(IOREDTBL(gsi), lo);
+}

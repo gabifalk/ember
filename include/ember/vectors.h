@@ -19,5 +19,8 @@
 #define VEC_TIMER		IRQ_VECTOR_BASE	/* timer is IRQ0 */
 #define VEC_SCHED_KICK		0x40	/* IPI: wake idle CPUs to reschedule */
 #define VEC_TLB_SHOOTDOWN	0x41	/* IPI: remote TLB flush */
+#define VEC_IRQ_BASE		0x42	/* device IRQ vectors: 0x42..0x4f */
+#define VEC_IRQ_MAX		0x4f
+#define VEC_IRQ_SELFTEST	VEC_IRQ_BASE	/* used by irq_selftest() */
 
 #endif				/* EMBER_VECTORS_H. */
