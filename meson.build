@@ -63,6 +63,7 @@ all_src = files(
   'kernel/dev/blkcache.c',
   'kernel/dev/ramdisk.c',
   'kernel/dev/gpt.c',
+  'kernel/dev/netdev.c',
   'kernel/fs/cpio.c',
   'kernel/fs/vfs.c',
   'kernel/fs/ext2.c',
