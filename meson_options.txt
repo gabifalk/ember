@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Gabi Falk
+option('init', type: 'string', value: '',
+       description: 'Path to init binary for initrd (leave empty for no initrd)')
+option('kernel_cc', type: 'string', value: '',
+       description: 'C compiler for the kernel (default: gcc, fallback: tcc)')
+option('static_tcc', type: 'string', value: '',
+       description: 'Path to static TCC binary for ext2-tcc image')
+option('user_cc', type: 'string', value: 'gcc',
+       description: 'C compiler for user-space test programs (e.g. gcc, musl-gcc)')
+option('m2_planet_prefix', type: 'string', value: '',
+       description: 'Path to M2-Planet toolchain prefix (bin/M2-Planet, bin/M1, bin/hex2, M2libc/)')

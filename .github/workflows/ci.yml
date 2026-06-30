@@ -1,0 +1,154 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Gabi Falk
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-tcc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y gcc libc-dev
+
+      - name: Build static tcc
+        run: |
+          curl -sL https://github.com/gabifalk/tinycc/releases/download/release_0_9_27/tcc-0.9.27.tar.bz2 | tar xj
+          cd tcc-0.9.27
+          ./configure --prefix=$HOME/tcc --cc=gcc --extra-cflags="-static" --extra-ldflags="-static"
+          make -j$(nproc) BCHECK_O=
+          make install
+
+      - name: Upload tcc
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-tcc
+          path: ~/tcc
+
+  build-tcc-master:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y gcc libc-dev
+
+      - name: Build static tcc (master)
+        run: |
+          git clone --depth 1 https://github.com/Tiny-C-Compiler/tinycc-mirror-repository.git tcc-src
+          cd tcc-src
+          ./configure --prefix=$HOME/tcc --cc=gcc --extra-cflags="-static" --extra-ldflags="-static"
+          make -j$(nproc) BCHECK_O=
+          make install
+
+      - name: Upload tcc
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-tcc-master
+          path: ~/tcc
+
+  build-m2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y gcc libc-dev
+
+      - name: Clone M2libc, mescc-tools, M2-Planet
+        run: |
+          git clone --depth 1 https://github.com/oriansj/M2libc.git
+          git clone --depth 1 https://github.com/oriansj/mescc-tools.git
+          git clone --depth 1 https://github.com/oriansj/M2-Planet.git
+          rm -rf mescc-tools/M2libc M2-Planet/M2libc
+          ln -s $PWD/M2libc mescc-tools/M2libc
+          ln -s $PWD/M2libc M2-Planet/M2libc
+
+      - name: Build mescc-tools
+        run: make -C mescc-tools M1 hex2 -j$(nproc)
+
+      - name: Build M2-Planet
+        run: make -C M2-Planet -j$(nproc)
+
+      - name: Assemble m2tools prefix
+        run: |
+          mkdir -p m2tools/bin
+          cp mescc-tools/bin/M1 mescc-tools/bin/hex2 m2tools/bin/
+          cp M2-Planet/bin/M2-Planet m2tools/bin/
+          cp -r M2libc m2tools/M2libc
+
+      - name: Upload m2tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: m2tools
+          path: m2tools
+
+  test:
+    needs: [build-tcc, build-tcc-master, build-m2]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - name: gcc-musl
+            kernel_cc: gcc
+            user_cc: musl-gcc
+          - name: tcc-musl
+            kernel_cc: tcc
+            user_cc: musl-gcc
+          - name: gcc-glibc
+            kernel_cc: gcc
+            user_cc: gcc
+        tcc: [static-tcc, static-tcc-master]
+    name: test (${{ matrix.toolchain.name }}, ${{ matrix.tcc }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download tcc
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.tcc }}
+          path: ~/tcc
+
+      - name: Download m2tools
+        uses: actions/download-artifact@v4
+        with:
+          name: m2tools
+          path: ~/m2tools
+
+      - name: Fix tcc permissions
+        run: chmod +x ~/tcc/bin/*
+
+      - name: Fix m2tools permissions
+        run: chmod +x ~/m2tools/bin/*
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            meson ninja-build \
+            ovmf qemu-system-x86 \
+            mtools cpio e2fsprogs \
+            gcc libc-dev musl-tools
+
+      - name: Configure
+        run: |
+          export PATH="$HOME/tcc/bin:$PATH"
+          meson setup build \
+            -Dkernel_cc=${{ matrix.toolchain.kernel_cc }} \
+            -Duser_cc=${{ matrix.toolchain.user_cc }} \
+            -Dstatic_tcc=$HOME/tcc/bin/tcc \
+            -Dm2_planet_prefix=$HOME/m2tools
+
+      - name: Build
+        run: |
+          export PATH="$HOME/tcc/bin:$PATH"
+          ninja -C build
+
+      - name: Test
+        run: |
+          export PATH="$HOME/tcc/bin:$PATH"
+          meson test -C build -v
+        env:
+          OVMF_CODE: /usr/share/OVMF/OVMF_CODE_4M.fd
+          OVMF_VARS: /usr/share/OVMF/OVMF_VARS_4M.fd
