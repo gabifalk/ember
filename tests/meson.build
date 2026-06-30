@@ -162,6 +162,15 @@ init_irqtest = custom_target('init_irqtest',
             '-Wl,-z,separate-code', '-o', '@OUTPUT@', '@INPUT@'],
 )
 
+# --- Freestanding e1000 ICMP init (own _start, no libc, pause loop) ---
+init_e1000_icmp = custom_target('init_e1000_icmp',
+  output: 'init_e1000_icmp',
+  input: 'init_e1000_icmp.c',
+  command: [cc_prog, '-static', '-no-pie', '-nostdlib', '-ffreestanding',
+            '-fno-stack-protector', '-march=x86-64', '-mno-avx',
+            '-Wl,-z,separate-code', '-o', '@OUTPUT@', '@INPUT@'],
+)
+
 # --- Ext2 images ---
 mkext2 = find_program('../scripts/mkext2img.sh')
 ext2_img = custom_target('ext2.img',
@@ -573,6 +582,20 @@ check_stack = find_program('../scripts/check_stack_usage.sh')
 test('stack-usage', check_stack,
   args: [kernel_archives[1]],
   depends: [kernel_archives],
+)
+
+# -- e1000 ICMP echo (ping over a QEMU socket netdev) --
+run_e1000_icmp = find_program('../scripts/run_e1000_icmp.sh')
+_name = 'esp-e1000-icmp'
+_esp = custom_target(_name,
+  output: _name + '.img',
+  depends: _bt_deps + [init_e1000_icmp],
+  command: _bt_base + ['@OUTPUT@', init_e1000_icmp],
+)
+test('icmp', run_e1000_icmp,
+  args: [_esp],
+  depends: [_esp],
+  timeout: 90,
 )
 
 # --- Interactive run targets ---
