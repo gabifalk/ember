@@ -128,6 +128,8 @@ kmain(boot_info_v1_t * bi)
 	fd_init();
 	blkdev_init();
 	blkcache_init();
+	extern void e1000_init(void);
+	e1000_init();
 
 	if (initrd_is_ext2_img) {
 		int rd = ramdisk_init(saved_initrd_phys, saved_initrd_size);

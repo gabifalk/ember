@@ -55,6 +55,7 @@ qemu-system-x86_64 \
     -machine "$MACHINE" \
     -cpu qemu64 \
     -smp "$SMP" \
+    -nic none \
     -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
     -drive if=pflash,format=raw,file="$vars_copy" \
     -drive if=none,format=raw,readonly=on,id=usbdisk,file="$ESP_IMG" \

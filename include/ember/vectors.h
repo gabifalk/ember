@@ -22,5 +22,6 @@
 #define VEC_IRQ_BASE		0x42	/* device IRQ vectors: 0x42..0x4f */
 #define VEC_IRQ_MAX		0x4f
 #define VEC_IRQ_SELFTEST	VEC_IRQ_BASE	/* used by irq_selftest() */
+#define VEC_E1000		(VEC_IRQ_BASE + 1)	/* 0x43: e1000 NIC */
 
 #endif				/* EMBER_VECTORS_H. */

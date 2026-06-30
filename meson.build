@@ -64,6 +64,7 @@ all_src = files(
   'kernel/dev/ramdisk.c',
   'kernel/dev/gpt.c',
   'kernel/dev/netdev.c',
+  'kernel/dev/e1000.c',
   'kernel/fs/cpio.c',
   'kernel/fs/vfs.c',
   'kernel/fs/ext2.c',
