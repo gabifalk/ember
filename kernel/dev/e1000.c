@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "ember/e1000.h"
 #include "ember/netdev.h"
+#include "ember/net/ipv4.h"
 #include "ember/pci.h"
 #include "ember/irq.h"
 #include "ember/pmm.h"
@@ -177,6 +178,7 @@ e1000_init(void)
 		mmio_w(REG_MTA + i * 4, 0);
 
 	read_mac(e1000_netdev.mac);
+	netdev_add_addr(&e1000_netdev, OUR_IP);
 
 	/* RX ring + buffers. */
 	rx_ring_phys = pmm_alloc_page();

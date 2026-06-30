@@ -26,6 +26,12 @@ kernel/syscall.c kernel/syscall_helpers.c kernel/syscall_pipe.c kernel/syscall_f
 kernel/kmain.c kernel/klib.c
 kernel/mm/pmm.c kernel/mm/heap.c
 kernel/dev/pci.c kernel/dev/irq.c kernel/dev/blkdev.c kernel/dev/ahci.c kernel/dev/ata.c kernel/dev/blkcache.c kernel/dev/ramdisk.c kernel/dev/gpt.c kernel/dev/netdev.c kernel/dev/e1000.c
+kernel/net/inet_csum.c
+kernel/net/arp_cache.c
+kernel/net/eth.c
+kernel/net/arp.c
+kernel/net/ipv4.c
+kernel/net/icmp.c
 kernel/fs/cpio.c kernel/fs/vfs.c kernel/fs/vfs_cache.c kernel/fs/vfs_lookup.c kernel/fs/ext2.c kernel/fs/ext2_inode.c kernel/fs/ext2_block.c kernel/fs/ext2_io.c kernel/fs/ext2_dir.c kernel/fs/ext2_ops.c kernel/fs/fat32.c kernel/fs/fd.c
 kernel/proc.c kernel/pipe.c
 kernel/sched.c kernel/arch/x86_64/switch.S kernel/arch/x86_64/timer.c
