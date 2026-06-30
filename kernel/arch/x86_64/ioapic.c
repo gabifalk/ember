@@ -167,9 +167,12 @@ ioapic_route_irq_level(uint8_t gsi, uint8_t vector, uint8_t dest_lapic_id)
 	if ((int)gsi > ioapic_max_redir)
 		return;
 
-	/* Low dword: vector | level-triggered (bit15) | active-low (bit13),
-	 * delivery Fixed, physical dest, unmasked (bit16 clear). */
-	uint32_t lo = (uint32_t) vector | (1u << 15) | (1u << 13);
+	/* Low dword: vector | level-triggered (bit15), delivery Fixed,
+	 * physical dest, active-high (bit13 clear), unmasked (bit16 clear).
+	 * On QEMU q35 the ICH9 PIRQ presents PCI interrupts to the IOAPIC
+	 * as active-high (asserted = input high), matching the ACPI ISO
+	 * polarity = 01 (active-high) recorded for the shared GSIs. */
+	uint32_t lo = (uint32_t) vector | (1u << 15);
 	uint32_t hi = (uint32_t) dest_lapic_id << 24;
 
 	ioapic_write(IOREDTBL(gsi) + 1, hi);
